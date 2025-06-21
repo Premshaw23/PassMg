@@ -2,17 +2,27 @@ import React, { useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useState, useRef } from "react";
 import { ToastContainer, toast } from "react-toastify";
+import PasswordRow from "./PasswordRow";
+import ConfirmModal from "./ConfirmModal";
+
 const Manager = () => {
   const [form, setform] = useState({ site: "", username: "", password: "" });
   const ref = useRef();
   const show = useRef();
   const [data, setdata] = useState([]);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+
   const getData = async () => {
-    let res = await fetch("http://localhost:3000/");
-    let fetchData = await res.json();
-    // console.log(fetchData);
-    setdata(fetchData);
-    // console.log(data);
+    try {
+      let res = await fetch("http://localhost:3000/");
+      if (!res.ok) throw new Error("Failed to fetch data");
+      let fetchData = await res.json();
+      setdata(fetchData);
+    } catch (err) {
+      toast("Failed to fetch data!", { type: "error" });
+    }
   };
 
   useEffect(() => {
@@ -85,7 +95,7 @@ const Manager = () => {
         autoClose: 1500,
         hideProgressBar: false,
         closeOnClick: false,
-        pauseOnHover: true,
+        pauseOnHover: true, 
         draggable: true,
         progress: undefined,
         theme: "light",
@@ -115,7 +125,23 @@ const Manager = () => {
       });
     }
   };
-  const deletePassword = async (id) => {
+  const handleDeleteRequest = (id) => {
+    setPendingDeleteId(id);
+    setModalOpen(true);
+  };
+  const handleConfirmDelete = async () => {
+    if (pendingDeleteId) {
+      await deletePassword(pendingDeleteId, true);
+      setPendingDeleteId(null);
+      setModalOpen(false);
+    }
+  };
+  const handleCancelDelete = () => {
+    setPendingDeleteId(null);
+    setModalOpen(false);
+  };
+  const deletePassword = async (id, skipConfirm) => {
+    if (!skipConfirm) return handleDeleteRequest(id);
     let c = confirm("Realy Wants to Delete");
     console.log("delete", id);
     if (c) {
@@ -123,7 +149,6 @@ const Manager = () => {
         return id !== item.id;
       });
       setdata(newdata);
-      // localStorage.setItem("alldata", JSON.stringify(newdata));
       await fetch("http://localhost:3000/", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -222,6 +247,15 @@ const Manager = () => {
           <h2 className="text-2xl font-semibold md:py-3 px-2 ">
             All Passwords
           </h2>
+          <div className="mb-4 flex justify-end">
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by site or username..."
+              className="border border-green-400 rounded-full px-4 py-1 focus:outline-none w-full md:w-1/3"
+            />
+          </div>
           <div>
             {data.length === 0 && (
               <div className="w-full text-center pt-10">
@@ -239,110 +273,32 @@ const Manager = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-green-200">
-                  {data.map((item, index) => {
-                    return (
-                      <tr key={index}>
-                        <td className="text-center md:p-2">
-                          <div className="flex justify-center items-center gap-2">
-                            <a
-                              className="hover:font-bold "
-                              target="_blank"
-                              href={item.site}
-                            >
-                              {item.site}
-                            </a>
-                            <div
-                              className="copy cursor-pointer "
-                              onClick={() => copytext(item.site)}
-                            >
-                              <lord-icon
-                                style={{
-                                  width: "25px",
-                                  height: "25px",
-                                  paddingTop: "3px",
-                                  paddingLeft: "3px",
-                                }}
-                                src="https://cdn.lordicon.com/iykgtsbt.json"
-                                trigger="hover"
-                              ></lord-icon>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-2 flex justify-center items-center gap-2">
-                          <div className="flex justify-center items-center gap-2">
-                            {item.username}
-                            <div
-                              className="copy cursor-pointer"
-                              onClick={() => copytext(item.username)}
-                            >
-                              <lord-icon
-                                style={{
-                                  width: "25px",
-                                  height: "25px",
-                                  paddingTop: "3px",
-                                  paddingLeft: "3px",
-                                }}
-                                src="https://cdn.lordicon.com/iykgtsbt.json"
-                                trigger="hover"
-                              ></lord-icon>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="text-center p-2">
-                          <div className="flex justify-center items-center gap-2">
-                            {"*".repeat(item.password.length)}
-                            <div
-                              className="copy cursor-pointer"
-                              onClick={() => copytext(item.password)}
-                            >
-                              <lord-icon
-                                style={{
-                                  width: "25px",
-                                  height: "25px",
-                                  paddingTop: "3px",
-                                  paddingLeft: "3px",
-                                }}
-                                src="https://cdn.lordicon.com/iykgtsbt.json"
-                                trigger="hover"
-                              ></lord-icon>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="justify-center py-2 text-center">
-                          <span
-                            className="cursor-pointer mx-1"
-                            onClick={() => {
-                              editPassword(item.id);
-                            }}
-                          >
-                            <lord-icon
-                              src="https://cdn.lordicon.com/gwlusjdu.json"
-                              trigger="hover"
-                              style={{ width: "25px", height: "25px" }}
-                            ></lord-icon>
-                          </span>
-                          <span
-                            className="cursor-pointer mx-1"
-                            onClick={() => {
-                              deletePassword(item.id);
-                            }}
-                          >
-                            <lord-icon
-                              src="https://cdn.lordicon.com/skkahier.json"
-                              trigger="hover"
-                              style={{ width: "25px", height: "25px" }}
-                            ></lord-icon>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {data
+                    .filter(item =>
+                      item.site.toLowerCase().includes(search.toLowerCase()) ||
+                      item.username.toLowerCase().includes(search.toLowerCase())
+                    )
+                    .map((item, index) => (
+                      <PasswordRow
+                        key={item.id || index}
+                        item={item}
+                        onCopy={copytext}
+                        onEdit={editPassword}
+                        onDelete={deletePassword}
+                      />
+                    ))}
                 </tbody>
               </table>
             )}
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={modalOpen}
+        message="Are you sure you want to delete this password?"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </>
   );
 };
